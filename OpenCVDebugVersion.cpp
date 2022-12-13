@@ -11,29 +11,29 @@
 using namespace cv;
 using namespace std;
 
-bool readCameraParameters(string filename, Mat& camMatrix, Mat& distCoeffs) {
-    FileStorage fs(filename, FileStorage::READ);
-    if (!fs.isOpened())
+bool readCameraParameters(string filename, Mat& cameraMatrix, Mat& distortion_coefficients) {
+    FileStorage filestorage(filename, FileStorage::READ);
+    if (!filestorage.isOpened())
         return false;
-    fs["camera_matrix"] >> camMatrix;
-    fs["distortion_coefficients"] >> distCoeffs;
+
+    filestorage["camera_matrix"] >> cameraMatrix;
+    filestorage["distortion_coefficients"] >> distortion_coefficients;
+
     return true;
 }
 
 double Calibrate(Mat cameraMtx, Mat distortionCoffeicient) {
     Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_6X6_250);
-    Ptr<aruco::GridBoard> board = aruco::GridBoard::create(5, 7, 0.04, 0.01, dictionary);
+    Ptr<aruco::GridBoard> board = aruco::GridBoard::create(5, 7, 0.026, 0.003, dictionary);
     Size imgSize = Size(0.026, 0.026);
-
 
     vector<vector<Point2f>> corners;
     vector<int> ids, markerCtr;
-
     //Mat cameraMtx, distortionCoffeicient;
-    vector<Mat> rotationVector, transitionVector;
-
+    vector<Mat> rotationVector, translationVector;
     int calibrationFlags = 0;
-    return aruco::calibrateCameraAruco(corners, ids, markerCtr, board, imgSize, cameraMtx, distortionCoffeicient, rotationVector, transitionVector, calibrationFlags);
+
+    return aruco::calibrateCameraAruco(corners, ids, markerCtr, board, imgSize, cameraMtx, distortionCoffeicient, rotationVector, translationVector, calibrationFlags);
 }
 
 
@@ -92,12 +92,16 @@ int main(){
 
         vector<vector<Point2f>> corners;
         vector<int> ids;
+        
+        //Fill corners and ids with data
         aruco::detectMarkers(img, dictionary, corners, ids);
 
+        //If we have detected at least one marker
         if (ids.size() > 0) {
             aruco::drawDetectedMarkers(outImg, corners, ids);
             
             vector<Vec3d> rotationVectors, translationVectors;
+
             aruco::estimatePoseSingleMarkers(corners, 0.026, cameraMatrix, distortionCoefficient, rotationVectors, translationVectors);
             
             //Printing commands to console based on the id of the last marker that was detected
@@ -146,12 +150,13 @@ int main(){
             }
         }
 
-        imshow("Out", outImg);
+        cv::imshow("Out", outImg);
         int key = waitKey(4);
-        if (key == (int)'b')
+        if (key == 27)
             break;
 
     }
+
     videocapture.release();
     cv::destroyAllWindows();
     return 0;
